@@ -1,11 +1,10 @@
 /* =====================================================
-   EVOLUTION BRAIN - AUDIO OPTIMIZED
-   Compatible Language Sound Generation
+   ADVANCED EVOLUTION BRAIN
 ===================================================== */
 
 class Brain {
 
-    constructor(inputSize = 12, hiddenSize = 24, outputSize = 6) {
+    constructor(inputSize = 8, hiddenSize = 24, outputSize = 6) {
 
         this.inputSize = inputSize
         this.hiddenSize = hiddenSize
@@ -55,6 +54,18 @@ class Brain {
         this.mutateMatrix(this.w2, rate)
         this.mutateArray(this.b1, rate)
         this.mutateArray(this.b2, rate)
+    }
+
+    clone() {
+
+        let clone = new Brain(this.inputSize, this.hiddenSize, this.outputSize)
+
+        clone.w1 = JSON.parse(JSON.stringify(this.w1))
+        clone.w2 = JSON.parse(JSON.stringify(this.w2))
+        clone.b1 = [...this.b1]
+        clone.b2 = [...this.b2]
+
+        return clone
     }
 
     randomMatrix(rows, cols) {
