@@ -263,7 +263,7 @@ function eatFood(creature){
 /* ================= INIT ================= */
 
 creatures=Array.from({length:15},()=>new Creature())
-predators=Array.from({length:3},()=>new Predator())
+predators=Array.from({length:1},()=>new Predator())
 
 /* ================= LOOP ================= */
 
