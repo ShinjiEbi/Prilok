@@ -2,10 +2,11 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ecosystem Control</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ecosystem Live</title>
 
 <style>
+
 body{
     margin:0;
     background:#050510;
@@ -20,27 +21,35 @@ canvas{
     background:#0f1a2e;
 }
 
+/* 🔥 PANEL CORRIGÉ */
 .panel{
     position:fixed;
-    right:10px;
-    top:10px;
+    right:15px;
+    top:15px;
     background:#111;
     padding:15px;
     border-radius:10px;
-    width:220px;
+    width:230px;
     text-align:left;
     font-size:14px;
+    z-index:9999; /* reste au-dessus du monde */
 }
 
-input{
+.panel label{
+    display:block;
+    margin-top:8px;
+}
+
+.panel input{
     width:100%;
 }
+
 </style>
 
 </head>
 <body>
 
-<h2>Ecosystème — Paramètres Live</h2>
+<h2>Ecosystème Evolutif</h2>
 
 <canvas id="world"></canvas>
 
@@ -62,7 +71,7 @@ input{
 <input type="range" id="foodSpawn" min="1" max="50" value="15">
 
 <label>Friction</label>
-<input type="range" id="friction" min="0.7" max="0.99" step="0.01" value="0.92">
+<input type="range" id="friction" min="0.70" max="0.99" step="0.01" value="0.92">
 
 </div>
 
