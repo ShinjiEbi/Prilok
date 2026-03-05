@@ -1,5 +1,5 @@
-const size = 60
-const cell = 10
+const size = 50
+const cell = 12
 const canvas = document.getElementById("world")
 const ctx = canvas.getContext("2d")
 
@@ -7,173 +7,198 @@ canvas.width = size * cell
 canvas.height = size * cell
 
 let creatures = []
+let predators = []
 let food = []
-let lastUpdate = 0
-const updateDelay = 200 // 🔥 ralentissement
 
-// ==========================
-// 🧠 CREATURE
-// ==========================
+function clamp(v){
+    return Math.max(0,Math.min(size-1,v))
+}
 
-class Creature {
+function getNearest(list,x,y){
 
-    constructor(brain = null) {
+    let best = null
+    let dist = Infinity
 
-        this.x = Math.random() * size | 0
-        this.y = Math.random() * size | 0
-        this.energy = 60
+    list.forEach(obj=>{
+        let d = Math.hypot(obj.x-x,obj.y-y)
+        if(d < dist){
+            dist = d
+            best = obj
+        }
+    })
+
+    return best
+}
+
+function spawnFood(){
+    for(let i=0;i<15;i++){
+        food.push({
+            x: Math.random()*size|0,
+            y: Math.random()*size|0
+        })
+    }
+}
+
+function eatFood(creature){
+
+    food = food.filter(f=>{
+        if(f.x===creature.x && f.y===creature.y){
+            creature.energy += 40
+            return false
+        }
+        return true
+    })
+}
+
+/* ================= CREATURE ================= */
+
+class Creature{
+
+    constructor(brain=null){
+        this.x = Math.random()*size|0
+        this.y = Math.random()*size|0
+        this.energy = 80
         this.brain = brain || new Brain()
     }
 
-    update() {
+    update(){
 
-        let nearestFood = food[0]
-        let dx = nearestFood ? nearestFood.x - this.x : 0
-        let dy = nearestFood ? nearestFood.y - this.y : 0
+        let nearestFood = getNearest(food,this.x,this.y)
+        let nearestPred = getNearest(predators,this.x,this.y)
 
         let inputs = [
-            dx / size,
-            dy / size,
-            this.energy / 100,
+            (nearestFood?.x - this.x || 0)/size,
+            (nearestFood?.y - this.y || 0)/size,
+            (nearestPred?.x - this.x || 0)/size,
+            (nearestPred?.y - this.y || 0)/size,
+            this.energy/100,
             Math.random(),
-            this.x / size,
-            this.y / size
+            this.x/size,
+            this.y/size,
+            food.length/100
         ]
 
-        let decision = this.brain.think(inputs)
+        let output = this.brain.think(inputs)
 
-        // Mouvement lent
-        if (Math.abs(decision) > 0.4) {
-            this.x += decision > 0 ? 1 : -1
-        }
+        this.x += output[0] > 0 ? 1 : -1
+        this.y += output[1] > 0 ? 1 : -1
 
-        if (Math.abs(decision) > 0.7) {
-            this.y += decision > 0 ? 1 : -1
-        }
+        this.x = clamp(this.x)
+        this.y = clamp(this.y)
 
-        this.x = Math.max(0, Math.min(size - 1, this.x))
-        this.y = Math.max(0, Math.min(size - 1, this.y))
+        this.energy -= 0.5
 
-        this.energy -= 0.3
+        eatFood(this)
 
-        // Manger
-        food = food.filter(f => {
-            if (f.x === this.x && f.y === this.y) {
-
-                this.energy += 25
-                this.brain.learn(1, inputs)
-
-                return false
-            }
-            return true
-        })
-
-        // Reproduction
-        if (this.energy > 100) {
+        if(this.energy > 150){
 
             let childBrain = this.brain.clone()
             childBrain.mutate()
 
             creatures.push(new Creature(childBrain))
-            this.energy -= 50
+
+            this.energy -= 70
         }
     }
 
-    draw() {
+    draw(){
 
-        let green = Math.min(255, this.energy * 3)
-
-        ctx.fillStyle = `rgb(0,${green},255)`
-
+        ctx.fillStyle = "cyan"
         ctx.beginPath()
         ctx.arc(
-            this.x * cell + cell / 2,
-            this.y * cell + cell / 2,
-            cell / 2.5,
+            this.x*cell+cell/2,
+            this.y*cell+cell/2,
+            cell/3,
             0,
-            Math.PI * 2
+            Math.PI*2
         )
         ctx.fill()
     }
 }
 
-// ==========================
-// 🌱 SPAWN FOOD
-// ==========================
+/* ================= PREDATEUR ================= */
 
-function spawnFood() {
+class Predator{
 
-    for (let i = 0; i < 15; i++) {
+    constructor(){
+        this.x = Math.random()*size|0
+        this.y = Math.random()*size|0
+    }
 
-        food.push({
-            x: Math.random() * size | 0,
-            y: Math.random() * size | 0
+    update(){
+
+        let target = getNearest(creatures,this.x,this.y)
+
+        if(target){
+            if(target.x > this.x) this.x++
+            if(target.x < this.x) this.x--
+            if(target.y > this.y) this.y++
+            if(target.y < this.y) this.y--
+        }
+
+        this.x = clamp(this.x)
+        this.y = clamp(this.y)
+
+        creatures = creatures.filter(c=>{
+            if(c.x===this.x && c.y===this.y){
+                return false
+            }
+            return true
         })
+    }
+
+    draw(){
+
+        ctx.fillStyle="red"
+
+        ctx.beginPath()
+        ctx.moveTo(this.x*cell, this.y*cell - cell/2)
+        ctx.lineTo(this.x*cell - cell/2, this.y*cell + cell/2)
+        ctx.lineTo(this.x*cell + cell/2, this.y*cell + cell/2)
+        ctx.closePath()
+        ctx.fill()
     }
 }
 
-// ==========================
-// 🎮 INITIALISATION
-// ==========================
+/* ================= INITIALISATION ================= */
 
-creatures = Array.from(
-    { length: 15 },
-    () => new Creature()
-)
+creatures = Array.from({length:15},()=>new Creature())
+predators = Array.from({length:3},()=>new Predator())
 
-// ==========================
-// 🔄 UNE SEULE BOUCLE
-// ==========================
+/* ================= LOOP ================= */
 
-function loop(timestamp) {
-
-    if (timestamp - lastUpdate < updateDelay) {
-        requestAnimationFrame(loop)
-        return
-    }
-
-    lastUpdate = timestamp
+function loop(){
 
     spawnFood()
 
-    // Fond
-    let gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height)
-    gradient.addColorStop(0, "#050510")
-    gradient.addColorStop(1, "#0f1f3d")
+    // fond
+    ctx.fillStyle="#0b1425"
+    ctx.fillRect(0,0,canvas.width,canvas.height)
 
-    ctx.fillStyle = gradient
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    // zones ecosystem
+    let zoneWidth = size/3
 
-    // Grille
-    ctx.strokeStyle = "rgba(255,255,255,0.05)"
-
-    for (let i = 0; i < size; i++) {
-
-        ctx.beginPath()
-        ctx.moveTo(i * cell, 0)
-        ctx.lineTo(i * cell, canvas.height)
-        ctx.stroke()
-
-        ctx.beginPath()
-        ctx.moveTo(0, i * cell)
-        ctx.lineTo(canvas.width, i * cell)
-        ctx.stroke()
+    for(let z=0;z<3;z++){
+        ctx.fillStyle = `rgba(${z*80},0,80,0.2)`
+        ctx.fillRect(z*zoneWidth*cell,0,zoneWidth*cell,canvas.height)
     }
 
-    // Nourriture
-    ctx.fillStyle = "lime"
-
-    food.forEach(f => {
-        ctx.fillRect(f.x * cell, f.y * cell, cell, cell)
+    food.forEach(f=>{
+        ctx.fillStyle="lime"
+        ctx.fillRect(f.x*cell,f.y*cell,cell,cell)
     })
 
-    // Créatures
-    creatures.forEach(c => {
+    creatures.forEach(c=>{
         c.update()
         c.draw()
     })
 
-    creatures = creatures.filter(c => c.energy > 0)
+    predators.forEach(p=>{
+        p.update()
+        p.draw()
+    })
+
+    creatures = creatures.filter(c=>c.energy>0)
 
     requestAnimationFrame(loop)
 }
