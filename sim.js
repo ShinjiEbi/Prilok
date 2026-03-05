@@ -1,7 +1,3 @@
-// ===============================
-// 🔥 ECOSYSTEM LIVE CONTROL
-// ===============================
-
 const size = 50
 const cell = 12
 const canvas = document.getElementById("world")
@@ -10,9 +6,9 @@ const ctx = canvas.getContext("2d")
 canvas.width = size * cell
 canvas.height = size * cell
 
-// ===============================
-// 🎛 PARAMÈTRES MODIFIABLES
-// ===============================
+// =====================
+// 🎛 PARAMÈTRES LIVE
+// =====================
 
 let updateDelay = 400
 let predatorSpeed = 0.2
@@ -27,9 +23,9 @@ let food = []
 
 let lastUpdate = 0
 
-// ===============================
-// 🔧 UTILITAIRES
-// ===============================
+// =====================
+// UTILITAIRES
+// =====================
 
 function clamp(v){
     return Math.max(0,Math.min(size-1,v))
@@ -55,21 +51,16 @@ function getNearest(list,x,y){
     return best
 }
 
-// ===============================
-// 🌱 NOURRITURE
-// ===============================
+// =====================
+// FOOD
+// =====================
 
 function spawnFood(){
-
     for(let i=0;i<foodSpawnRate;i++){
-
-        if(Math.random()<0.5){
-
-            food.push({
-                x:Math.random()*size|0,
-                y:Math.random()*size|0
-            })
-        }
+        food.push({
+            x:Math.random()*size|0,
+            y:Math.random()*size|0
+        })
     }
 }
 
@@ -88,9 +79,9 @@ function eatFood(creature){
     })
 }
 
-// ===============================
-// 🧠 CREATURE
-// ===============================
+// =====================
+// CREATURE
+// =====================
 
 class Creature{
 
@@ -103,6 +94,7 @@ class Creature{
         this.vy=0
 
         this.energy=100
+
         this.brain=brain||new Brain()
     }
 
@@ -111,21 +103,15 @@ class Creature{
         let nearestFood=getNearest(food,this.x,this.y)
         let nearestPred=getNearest(predators,this.x,this.y)
 
-        // Vision murs
-        let wallLeft=this.x/size
-        let wallRight=(size-this.x)/size
-        let wallTop=this.y/size
-        let wallBottom=(size-this.y)/size
-
         let inputs=[
             (nearestFood?.x-this.x||0)/size,
             (nearestFood?.y-this.y||0)/size,
             (nearestPred?.x-this.x||0)/size,
             (nearestPred?.y-this.y||0)/size,
-            wallLeft,
-            wallRight,
-            wallTop,
-            wallBottom,
+            this.x/size,
+            this.y/size,
+            (size-this.x)/size,
+            (size-this.y)/size,
             this.energy/100,
             this.vx,
             this.vy,
@@ -134,7 +120,7 @@ class Creature{
 
         let output=this.brain.think(inputs)
 
-        // Physique réaliste
+        // Physique
         let speed=0.2
 
         this.vx += output[0]*speed
@@ -155,9 +141,7 @@ class Creature{
 
         // Reproduction proximité
         creatures.forEach(other=>{
-
             if(other!==this && distance(this,other)<1.5){
-
                 if(this.energy>130 && other.energy>130){
 
                     let childBrain=this.brain.clone()
@@ -175,22 +159,15 @@ class Creature{
     draw(){
 
         ctx.fillStyle="cyan"
-
         ctx.beginPath()
-        ctx.arc(
-            this.x*cell,
-            this.y*cell,
-            cell/3,
-            0,
-            Math.PI*2
-        )
+        ctx.arc(this.x*cell,this.y*cell,cell/3,0,Math.PI*2)
         ctx.fill()
     }
 }
 
-// ===============================
-// 🔴 PREDATEUR
-// ===============================
+// =====================
+// PREDATOR
+// =====================
 
 class Predator{
 
@@ -204,27 +181,20 @@ class Predator{
         let target=getNearest(creatures,this.x,this.y)
 
         if(target){
-
-            let dx=target.x-this.x
-            let dy=target.y-this.y
-
-            this.x+=Math.sign(dx)*predatorSpeed
-            this.y+=Math.sign(dy)*predatorSpeed
+            this.x += Math.sign(target.x-this.x)*predatorSpeed
+            this.y += Math.sign(target.y-this.y)*predatorSpeed
         } else {
-
-            this.x+=(Math.random()-0.5)*0.1
-            this.y+=(Math.random()-0.5)*0.1
+            this.x += (Math.random()-0.5)*0.1
+            this.y += (Math.random()-0.5)*0.1
         }
 
         this.x=clamp(this.x)
         this.y=clamp(this.y)
 
-        creatures=creatures.filter(c=>{
-
+        creatures = creatures.filter(c=>{
             if(distance(c,this)<0.8){
                 return false
             }
-
             return true
         })
     }
@@ -242,16 +212,9 @@ class Predator{
     }
 }
 
-// ===============================
-// 🌍 INITIALISATION
-// ===============================
-
-creatures=Array.from({length:creatureCount},()=>new Creature())
-predators=Array.from({length:predatorCount},()=>new Predator())
-
-// ===============================
-// 🎛 PARAMÈTRES LIVE
-// ===============================
+// =====================
+// PARAMÈTRES LIVE
+// =====================
 
 function updateParams(){
 
@@ -263,9 +226,16 @@ function updateParams(){
     friction=parseFloat(document.getElementById("friction").value)
 }
 
-// ===============================
-// 🔄 LOOP PRINCIPAL
-// ===============================
+// =====================
+// INITIALISATION
+// =====================
+
+creatures=Array.from({length:creatureCount},()=>new Creature())
+predators=Array.from({length:predatorCount},()=>new Predator())
+
+// =====================
+// LOOP
+// =====================
 
 function loop(timestamp){
 
@@ -283,19 +253,16 @@ function loop(timestamp){
     ctx.fillStyle="#0b1425"
     ctx.fillRect(0,0,canvas.width,canvas.height)
 
-    // Nourriture
     food.forEach(f=>{
         ctx.fillStyle="lime"
         ctx.fillRect(f.x*cell,f.y*cell,cell,cell)
     })
 
-    // Créatures
     creatures.forEach(c=>{
         c.update()
         c.draw()
     })
 
-    // Prédateurs
     predators.forEach(p=>{
         p.update()
         p.draw()
