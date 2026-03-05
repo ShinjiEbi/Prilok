@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Evolution Language</title>
+<title>Evolution Survival Language</title>
 
 <style>
 body{
@@ -13,7 +13,6 @@ canvas{
 display:block;
 }
 </style>
-
 </head>
 <body>
 
@@ -24,13 +23,13 @@ display:block;
 
 <script>
 
-const size = 50
-const cell = 12
-const canvas = document.getElementById("world")
-const ctx = canvas.getContext("2d")
+const size=50
+const cell=12
+const canvas=document.getElementById("world")
+const ctx=canvas.getContext("2d")
 
-canvas.width = size * cell
-canvas.height = size * cell
+canvas.width=size*cell
+canvas.height=size*cell
 
 let creatures=[]
 let food=[]
@@ -44,19 +43,49 @@ function distance(a,b){
 return Math.hypot(a.x-b.x,a.y-b.y)
 }
 
+/* ================= FOOD ================= */
+
+function spawnFood(){
+if(Math.random()<0.3){
+food.push({
+x:Math.random()*size|0,
+y:Math.random()*size|0
+})
+}
+}
+
+function eatFood(creature){
+
+food=food.filter(f=>{
+
+if(Math.floor(f.x)==Math.floor(creature.x) &&
+Math.floor(f.y)==Math.floor(creature.y)){
+
+creature.energy+=50
+
+// 🔊 signal nourriture
+creature.soundSystem.emit("food",1)
+
+return false
+}
+
+return true
+})
+}
+
 /* ================= CREATURE ================= */
 
-class Creature {
+class Creature{
 
 constructor(){
 
 this.x=Math.random()*size
 this.y=Math.random()*size
-
 this.vx=0
 this.vy=0
 
-this.energy=100
+this.energy=120
+
 this.brain=new Brain()
 this.soundSystem=new SoundSystem()
 this.emittedSound=null
@@ -65,28 +94,27 @@ this.soundMemory={}
 
 update(){
 
-// nourriture simple
-let nearest=null
+let nearestFood=null
 let min=9999
 
 food.forEach(f=>{
 let d=distance(this,f)
 if(d<min){
 min=d
-nearest=f
+nearestFood=f
 }
 })
 
 let inputs=[
-(nearest?.x-this.x||0)/size,
-(nearest?.y-this.y||0)/size,
-this.energy/100,
+(nearestFood?.x-this.x||0)/size,
+(nearestFood?.y-this.y||0)/size,
+this.energy/150,
+food.length/100,
 predators.length/10
 ]
 
 let output=this.brain.think(inputs)
 
-// mouvement
 this.vx+=output[0]*0.2
 this.vy+=output[1]*0.2
 
@@ -101,48 +129,41 @@ this.y=clamp(this.y)
 
 this.energy-=0.2
 
-// ===== EMISSION SONORE =====
+eatFood(this)
 
-if(Math.random()<0.03){
+/* ================= DANGER SIGNAL ================= */
 
-let brainOutput=this.brain.think([
-this.energy/100,
-Math.random(),
-Math.random()
-])
+let danger = predators.length > 0
 
-let sound=this.soundSystem.emit({
-freq:brainOutput[0],
-duration:brainOutput[1],
-volume:brainOutput[2]
-})
+if(danger && Math.random()<0.02){
 
-this.emittedSound=sound
+this.soundSystem.emit("danger",1)
 }
 
-// ===== ECOUTE =====
+/* ================= ENTRAIDE ================= */
 
 creatures.forEach(other=>{
 
-if(other!==this && other.emittedSound){
+if(other!==this){
 
 let d=distance(this,other)
 
-if(d<8){
+if(d<6 && this.energy<60){
 
-let influence=1-(d/8)
+// partage énergie
+let transfer=0.3
+this.energy+=transfer
+other.energy-=transfer
 
-if(this.energy<80){
-this.energy+=influence*0.5
-
-this.soundMemory[other.emittedSound.freq]=
-(this.soundMemory[other.emittedSound.freq]||0)+0.1
-}
+// signal aide
+this.soundSystem.emit("help",0.5)
 }
 }
 })
 
 }
+
+/* DRAW */
 
 draw(){
 
@@ -156,7 +177,7 @@ ctx.fill()
 
 /* ================= INIT ================= */
 
-creatures=Array.from({length:15},()=>new Creature())
+creatures=Array.from({length:20},()=>new Creature())
 
 /* ================= LOOP ================= */
 
@@ -164,6 +185,14 @@ function loop(){
 
 ctx.fillStyle="#0b1425"
 ctx.fillRect(0,0,canvas.width,canvas.height)
+
+spawnFood()
+
+// food
+food.forEach(f=>{
+ctx.fillStyle="lime"
+ctx.fillRect(f.x*cell,f.y*cell,cell,cell)
+})
 
 creatures.forEach(c=>{
 c.update()
@@ -178,5 +207,6 @@ requestAnimationFrame(loop)
 loop()
 
 </script>
+
 </body>
 </html>
