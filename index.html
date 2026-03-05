@@ -5,11 +5,11 @@
 <title>Eco Simulation</title>
 <style>
 body{
-    margin:0;
-    background:black;
+margin:0;
+background:black;
 }
 canvas{
-    display:block;
+display:block;
 }
 </style>
 </head>
@@ -17,280 +17,213 @@ canvas{
 
 <canvas id="world"></canvas>
 
-<script src="Brain.js"></script>
-
 <script>
 
-/* ================= PARAMS ================= */
+/* ================= BRAIN ================= */
 
-const size = 50
-const cell = 12
-const canvas = document.getElementById("world")
-const ctx = canvas.getContext("2d")
+class Brain{
 
-canvas.width = size * cell
-canvas.height = size * cell
+constructor(){
+
+this.weights=[]
+for(let i=0;i<10;i++){
+this.weights[i]=Math.random()*2-1
+}
+
+this.bias=Math.random()*2-1
+}
+
+think(inputs){
+
+let sum=0
+
+for(let i=0;i<this.weights.length;i++){
+sum += (inputs[i]||0)*this.weights[i]
+}
+
+sum += this.bias
+
+let activated=Math.tanh(sum)
+
+return [activated,activated]
+}
+
+clone(){
+let b=new Brain()
+b.weights=[...this.weights]
+b.bias=this.bias
+return b
+}
+
+mutate(){
+
+for(let i=0;i<this.weights.length;i++){
+if(Math.random()<0.1){
+this.weights[i]+= (Math.random()*2-1)*0.3
+}
+}
+
+if(Math.random()<0.1){
+this.bias+= (Math.random()*2-1)*0.5
+}
+}
+
+}
+
+/* ================= SIMULATION ================= */
+
+const size=50
+const cell=12
+const canvas=document.getElementById("world")
+const ctx=canvas.getContext("2d")
+
+canvas.width=size*cell
+canvas.height=size*cell
 
 let creatures=[]
 let predators=[]
 let food=[]
-
 let lastUpdate=0
-const updateDelay=120
-
-/* ================= UTILS ================= */
+const delay=120
 
 function clamp(v){
-    return Math.max(0,Math.min(size-1,v))
+return Math.max(0,Math.min(size-1,v))
 }
 
 function distance(a,b){
-    return Math.hypot(a.x-b.x,a.y-b.y)
-}
-
-function getNearest(list,x,y){
-
-    let best=null
-    let min=Infinity
-
-    list.forEach(obj=>{
-        let d=Math.hypot(obj.x-x,obj.y-y)
-        if(d<min){
-            min=d
-            best=obj
-        }
-    })
-
-    return best
+return Math.hypot(a.x-b.x,a.y-b.y)
 }
 
 function spawnFood(){
-    if(Math.random()<0.35){
-        food.push({
-            x:Math.random()*size|0,
-            y:Math.random()*size|0
-        })
-    }
+if(Math.random()<0.3){
+food.push({
+x:Math.random()*size|0,
+y:Math.random()*size|0
+})
+}
 }
 
-function eatFood(creature){
+function eatFood(c){
 
-    food=food.filter(f=>{
+food=food.filter(f=>{
 
-        if(Math.floor(f.x)===Math.floor(creature.x) &&
-           Math.floor(f.y)===Math.floor(creature.y)){
+if(Math.floor(f.x)==Math.floor(c.x) &&
+Math.floor(f.y)==Math.floor(c.y)){
 
-            creature.energy+=40
-            return false
-        }
+c.energy+=40
+return false
+}
 
-        return true
-    })
+return true
+})
 }
 
 /* ================= CREATURE ================= */
 
 class Creature{
 
-    constructor(brain=null){
+constructor(brain=null){
 
-        this.x=Math.random()*size
-        this.y=Math.random()*size
-
-        this.vx=0
-        this.vy=0
-
-        this.energy=100
-        this.brain=brain||new Brain()
-    }
-
-    update(){
-
-        let nearestFood=getNearest(food,this.x,this.y)
-        let nearestPred=getNearest(predators,this.x,this.y)
-
-        let fearX=0
-        let fearY=0
-
-        if(nearestPred){
-
-            let d=distance(this,nearestPred)
-
-            if(d<10 && d>0){
-
-                let dx=this.x-nearestPred.x
-                let dy=this.y-nearestPred.y
-
-                fearX=(dx/d)*(1-d/10)
-                fearY=(dy/d)*(1-d/10)
-            }
-        }
-
-        /* --- murs --- */
-
-        let wallX=0
-        let wallY=0
-        let margin=5
-
-        if(this.x<margin) wallX=0.4
-        if(this.x>size-margin) wallX=-0.4
-        if(this.y<margin) wallY=0.4
-        if(this.y>size-margin) wallY=-0.4
-
-        /* --- inputs --- */
-
-        let inputs=[
-            (nearestFood?.x-this.x||0)/size,
-            (nearestFood?.y-this.y||0)/size,
-            this.energy/100,
-            food.length/100
-        ]
-
-        let output=this.brain.think(inputs)
-
-        /* --- physique --- */
-
-        let speed=0.25
-
-        this.vx += output[0]*speed + fearX*0.4 + wallX
-        this.vy += output[1]*speed + fearY*0.4 + wallY
-
-        this.vx *=0.9
-        this.vy *=0.9
-
-        this.x += this.vx
-        this.y += this.vy
-
-        this.x=clamp(this.x)
-        this.y=clamp(this.y)
-
-        this.energy -=0.25
-
-        eatFood(this)
-
-        /* --- reproduction --- */
-
-        let reproduced=false
-
-        for(let other of creatures){
-
-            if(other!==this && !reproduced){
-
-                if(distance(this,other)<1.8){
-
-                    if(this.energy>140 && other.energy>140){
-
-                        let childBrain=this.brain.clone()
-                        childBrain.mutate()
-
-                        creatures.push(new Creature(childBrain))
-
-                        this.energy-=60
-                        other.energy-=60
-
-                        reproduced=true
-                    }
-                }
-            }
-        }
-    }
-
-    draw(){
-
-        ctx.fillStyle="cyan"
-        ctx.beginPath()
-        ctx.arc(this.x*cell,this.y*cell,cell/3,0,Math.PI*2)
-        ctx.fill()
-    }
+this.x=Math.random()*size
+this.y=Math.random()*size
+this.vx=0
+this.vy=0
+this.energy=100
+this.brain=brain||new Brain()
 }
 
-/* ================= PREDATOR ================= */
+update(){
 
-class Predator{
+let nearest=null
+let min=9999
 
-    constructor(){
-        this.x=Math.random()*size
-        this.y=Math.random()*size
-        this.vx=0
-        this.vy=0
-    }
+food.forEach(f=>{
+let d=distance(this,f)
+if(d<min){
+min=d
+nearest=f
+}
+})
 
-    update(){
+let inputs=[
+(nearest?.x-this.x||0)/size,
+(nearest?.y-this.y||0)/size,
+this.energy/100
+]
 
-        let target=getNearest(creatures,this.x,this.y)
+let out=this.brain.think(inputs)
 
-        if(target){
+this.vx+=out[0]*0.2
+this.vy+=out[1]*0.2
 
-            let dx=target.x-this.x
-            let dy=target.y-this.y
+this.vx*=0.9
+this.vy*=0.9
 
-            this.vx += Math.sign(dx)*0.06
-            this.vy += Math.sign(dy)*0.06
-        }
+this.x+=this.vx
+this.y+=this.vy
 
-        this.vx*=0.92
-        this.vy*=0.92
+this.x=clamp(this.x)
+this.y=clamp(this.y)
 
-        this.x+=this.vx
-        this.y+=this.vy
+this.energy-=0.2
 
-        this.x=clamp(this.x)
-        this.y=clamp(this.y)
+eatFood(this)
 
-        creatures=creatures.filter(c=>distance(c,this)>0.8)
-    }
+if(this.energy>150){
 
-    draw(){
+let childBrain=this.brain.clone()
+childBrain.mutate()
 
-        ctx.fillStyle="red"
-        ctx.beginPath()
-        ctx.moveTo(this.x*cell,this.y*cell-cell/2)
-        ctx.lineTo(this.x*cell-cell/2,this.y*cell+cell/2)
-        ctx.lineTo(this.x*cell+cell/2,this.y*cell+cell/2)
-        ctx.closePath()
-        ctx.fill()
-    }
+creatures.push(new Creature(childBrain))
+
+this.energy-=70
+}
+}
+
+draw(){
+
+ctx.fillStyle="cyan"
+ctx.beginPath()
+ctx.arc(this.x*cell,this.y*cell,cell/3,0,Math.PI*2)
+ctx.fill()
+}
+
 }
 
 /* ================= INIT ================= */
 
 creatures=Array.from({length:15},()=>new Creature())
-predators=Array.from({length:3},()=>new Predator())
+predators=[]
 
 /* ================= LOOP ================= */
 
-function loop(timestamp){
+function loop(t){
 
-    if(timestamp-lastUpdate<updateDelay){
-        requestAnimationFrame(loop)
-        return
-    }
+if(t-lastUpdate<delay){
+requestAnimationFrame(loop)
+return
+}
 
-    lastUpdate=timestamp
+lastUpdate=t
 
-    spawnFood()
+spawnFood()
 
-    ctx.fillStyle="#0b1425"
-    ctx.fillRect(0,0,canvas.width,canvas.height)
+ctx.fillStyle="black"
+ctx.fillRect(0,0,canvas.width,canvas.height)
 
-    food.forEach(f=>{
-        ctx.fillStyle="lime"
-        ctx.fillRect(f.x*cell,f.y*cell,cell,cell)
-    })
+food.forEach(f=>{
+ctx.fillStyle="lime"
+ctx.fillRect(f.x*cell,f.y*cell,cell,cell)
+})
 
-    creatures.forEach(c=>{
-        c.update()
-        c.draw()
-    })
+creatures.forEach(c=>{
+c.update()
+c.draw()
+})
 
-    predators.forEach(p=>{
-        p.update()
-        p.draw()
-    })
+creatures=creatures.filter(c=>c.energy>0)
 
-    creatures=creatures.filter(c=>c.energy>0)
-
-    requestAnimationFrame(loop)
+requestAnimationFrame(loop)
 }
 
 loop()
