@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Evolution Survival Language</title>
+<title>Evolution Survival</title>
 
 <style>
 body{
@@ -13,27 +13,32 @@ canvas{
 display:block;
 }
 </style>
+
 </head>
 <body>
 
 <canvas id="world"></canvas>
 
 <script src="Brain.js"></script>
-<script src="SoundSystem.js"></script>
 
 <script>
 
-const size=50
-const cell=12
-const canvas=document.getElementById("world")
-const ctx=canvas.getContext("2d")
+/* ================= CONFIG ================= */
 
-canvas.width=size*cell
-canvas.height=size*cell
+const size = 50
+const cell = 12
+const MAX_CREATURES = 60
 
-let creatures=[]
-let food=[]
-let predators=[]
+const canvas = document.getElementById("world")
+const ctx = canvas.getContext("2d")
+
+canvas.width = size * cell
+canvas.height = size * cell
+
+let creatures = []
+let food = []
+
+/* ================= UTILS ================= */
 
 function clamp(v){
 return Math.max(0,Math.min(size-1,v))
@@ -56,16 +61,12 @@ y:Math.random()*size|0
 
 function eatFood(creature){
 
-food=food.filter(f=>{
+food = food.filter(f=>{
 
 if(Math.floor(f.x)==Math.floor(creature.x) &&
 Math.floor(f.y)==Math.floor(creature.y)){
 
-creature.energy+=50
-
-// 🔊 signal nourriture
-creature.soundSystem.emit("food",1)
-
+creature.energy += 50
 return false
 }
 
@@ -81,15 +82,13 @@ constructor(){
 
 this.x=Math.random()*size
 this.y=Math.random()*size
+
 this.vx=0
 this.vy=0
 
 this.energy=120
 
 this.brain=new Brain()
-this.soundSystem=new SoundSystem()
-this.emittedSound=null
-this.soundMemory={}
 }
 
 update(){
@@ -105,18 +104,35 @@ nearestFood=f
 }
 })
 
+/* ================= INPUTS ================= */
+
 let inputs=[
 (nearestFood?.x-this.x||0)/size,
 (nearestFood?.y-this.y||0)/size,
 this.energy/150,
 food.length/100,
-predators.length/10
+Math.min(min/10,1),
+this.x/size,
+this.y/size
 ]
 
 let output=this.brain.think(inputs)
 
-this.vx+=output[0]*0.2
-this.vy+=output[1]*0.2
+/* ================= WALL FORCE ================= */
+
+let wallForceX=0
+let wallForceY=0
+let margin=5
+
+if(this.x<margin) wallForceX=0.6
+if(this.x>size-margin) wallForceX=-0.6
+if(this.y<margin) wallForceY=0.6
+if(this.y>size-margin) wallForceY=-0.6
+
+/* ================= MOVE ================= */
+
+this.vx += output[0]*0.2 + wallForceX
+this.vy += output[1]*0.2 + wallForceY
 
 this.vx*=0.9
 this.vy*=0.9
@@ -129,41 +145,29 @@ this.y=clamp(this.y)
 
 this.energy-=0.2
 
+if(this.energy<20){
+this.vx*=0.5
+this.vy*=0.5
+}
+
 eatFood(this)
 
-/* ================= DANGER SIGNAL ================= */
+/* ================= REPRODUCTION ================= */
 
-let danger = predators.length > 0
+if(this.energy>180 && creatures.length<MAX_CREATURES){
 
-if(danger && Math.random()<0.02){
+let child=new Creature()
+child.brain=this.brain.clone()
+child.brain.mutate(0.1)
 
-this.soundSystem.emit("danger",1)
+creatures.push(child)
+
+this.energy-=70
 }
-
-/* ================= ENTRAIDE ================= */
-
-creatures.forEach(other=>{
-
-if(other!==this){
-
-let d=distance(this,other)
-
-if(d<6 && this.energy<60){
-
-// partage énergie
-let transfer=0.3
-this.energy+=transfer
-other.energy-=transfer
-
-// signal aide
-this.soundSystem.emit("help",0.5)
-}
-}
-})
 
 }
 
-/* DRAW */
+/* ================= DRAW ================= */
 
 draw(){
 
@@ -188,7 +192,6 @@ ctx.fillRect(0,0,canvas.width,canvas.height)
 
 spawnFood()
 
-// food
 food.forEach(f=>{
 ctx.fillStyle="lime"
 ctx.fillRect(f.x*cell,f.y*cell,cell,cell)
