@@ -1,10 +1,6 @@
-/* =====================================================
-   ADVANCED EVOLUTION BRAIN
-===================================================== */
-
 class Brain {
 
-    constructor(inputSize = 8, hiddenSize = 24, outputSize = 6) {
+    constructor(inputSize = 10, hiddenSize = 32, outputSize = 8) {
 
         this.inputSize = inputSize
         this.hiddenSize = hiddenSize
@@ -49,7 +45,6 @@ class Brain {
     }
 
     mutate(rate = 0.08) {
-
         this.mutateMatrix(this.w1, rate)
         this.mutateMatrix(this.w2, rate)
         this.mutateArray(this.b1, rate)
@@ -73,9 +68,7 @@ class Brain {
         let m = []
 
         for (let i = 0; i < rows; i++) {
-
             m[i] = []
-
             for (let j = 0; j < cols; j++) {
                 m[i][j] = (Math.random() * 2 - 1) * 0.7
             }
@@ -85,7 +78,6 @@ class Brain {
     }
 
     randomArray(size) {
-
         return Array.from({ length: size },
             () => (Math.random() * 2 - 1) * 0.7
         )
@@ -106,7 +98,6 @@ class Brain {
     mutateArray(array, rate) {
 
         for (let i = 0; i < array.length; i++) {
-
             if (Math.random() < rate) {
                 array[i] += (Math.random() * 2 - 1) * 0.5
             }
