@@ -11,7 +11,7 @@ let predators = []
 let food = []
 
 let lastUpdate = 0
-const updateDelay = 500   // 🔥 RALENTI PROPREMENT
+const updateDelay = 1500   // 🔥 RALENTI PROPREMENT
 
 function clamp(v){
     return Math.max(0,Math.min(size-1,v))
