@@ -10,6 +10,9 @@ let creatures = []
 let predators = []
 let food = []
 
+let lastUpdate = 0
+const updateDelay = 150   // 🔥 RALENTI PROPREMENT
+
 function clamp(v){
     return Math.max(0,Math.min(size-1,v))
 }
@@ -35,7 +38,7 @@ function getNearest(list,x,y){
 }
 
 function spawnFood(){
-    if(Math.random()<0.3){
+    if(Math.random()<0.4){
         food.push({
             x:Math.random()*size|0,
             y:Math.random()*size|0
@@ -65,30 +68,38 @@ class Creature{
         let nearestFood=getNearest(food,this.x,this.y)
         let nearestPred=getNearest(predators,this.x,this.y)
 
+        // ✅ VISION DES MURS
+        let wallLeft=this.x/size
+        let wallRight=(size-this.x)/size
+        let wallTop=this.y/size
+        let wallBottom=(size-this.y)/size
+
         let inputs=[
             (nearestFood?.x-this.x||0)/size,
             (nearestFood?.y-this.y||0)/size,
             (nearestPred?.x-this.x||0)/size,
             (nearestPred?.y-this.y||0)/size,
+            wallLeft,
+            wallRight,
+            wallTop,
+            wallBottom,
             this.energy/100,
             this.vx,
             this.vy,
-            this.x/size,
-            this.y/size,
-            (size-this.x)/size,
-            (size-this.y)/size,
             food.length/100
         ]
 
         let output=this.brain.think(inputs)
 
-        // 🔥 PHYSIQUE REALISTE
-        this.vx += output[0]*0.2
-        this.vy += output[1]*0.2
+        // ✅ PHYSIQUE REALISTE
+        let speed=0.2
+
+        this.vx += output[0]*speed
+        this.vy += output[1]*speed
 
         // friction
-        this.vx *= 0.9
-        this.vy *= 0.9
+        this.vx *= 0.92
+        this.vy *= 0.92
 
         this.x += this.vx
         this.y += this.vy
@@ -105,15 +116,15 @@ class Creature{
 
             if(other!==this && distance(this,other)<1.5){
 
-                if(this.energy>120 && other.energy>120){
+                if(this.energy>130 && other.energy>130){
 
                     let childBrain=this.brain.clone()
                     childBrain.mutate()
 
                     creatures.push(new Creature(childBrain))
 
-                    this.energy-=50
-                    other.energy-=50
+                    this.energy-=60
+                    other.energy-=60
                 }
             }
         })
@@ -149,11 +160,12 @@ class Predator{
         let target=getNearest(creatures,this.x,this.y)
 
         if(target){
+
             let dx=target.x-this.x
             let dy=target.y-this.y
 
-            this.x+=Math.sign(dx)*0.5
-            this.y+=Math.sign(dy)*0.5
+            this.x+=Math.sign(dx)*0.4
+            this.y+=Math.sign(dy)*0.4
         }
 
         this.x=clamp(this.x)
@@ -182,13 +194,12 @@ class Predator{
     }
 }
 
-/* ================= SYSTEM ================= */
-
 function eatFood(creature){
 
     food=food.filter(f=>{
 
-        if(f.x===creature.x|0 && f.y===creature.y|0){
+        if(Math.floor(f.x)===Math.floor(creature.x) &&
+           Math.floor(f.y)===Math.floor(creature.y)){
 
             creature.energy+=40
             return false
@@ -201,15 +212,24 @@ function eatFood(creature){
 creatures=Array.from({length:15},()=>new Creature())
 predators=Array.from({length:3},()=>new Predator())
 
-/* ================= LOOP ================= */
+/* ================= LOOP AVEC RALENTI ================= */
 
-function loop(){
+function loop(timestamp){
+
+    if(timestamp-lastUpdate<updateDelay){
+        requestAnimationFrame(loop)
+        return
+    }
+
+    lastUpdate=timestamp
 
     spawnFood()
 
+    // fond
     ctx.fillStyle="#0b1425"
     ctx.fillRect(0,0,canvas.width,canvas.height)
 
+    // nourriture
     food.forEach(f=>{
         ctx.fillStyle="lime"
         ctx.fillRect(f.x*cell,f.y*cell,cell,cell)
