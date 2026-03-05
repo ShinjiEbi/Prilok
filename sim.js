@@ -11,7 +11,7 @@ let predators = []
 let food = []
 
 let lastUpdate = 0
-const updateDelay = 150   // 🔥 RALENTI PROPREMENT
+const updateDelay = 150
 
 function clamp(v){
     return Math.max(0,Math.min(size-1,v))
@@ -68,11 +68,31 @@ class Creature{
         let nearestFood=getNearest(food,this.x,this.y)
         let nearestPred=getNearest(predators,this.x,this.y)
 
-        // ✅ VISION DES MURS
-        let wallLeft=this.x/size
-        let wallRight=(size-this.x)/size
-        let wallTop=this.y/size
-        let wallBottom=(size-this.y)/size
+        /* ================= PEUR DES PREDATEURS ================= */
+
+        let fearX = 0
+        let fearY = 0
+
+        if(nearestPred){
+
+            let d = distance(this,nearestPred)
+
+            if(d < 8){ // distance de peur
+
+                let dx = this.x - nearestPred.x
+                let dy = this.y - nearestPred.y
+
+                fearX = (dx / d) * (1 - d/8)
+                fearY = (dy / d) * (1 - d/8)
+            }
+        }
+
+        /* ================= VISION ================= */
+
+        let wallLeft = 1 - (this.x / size)
+        let wallRight = this.x / size
+        let wallTop = 1 - (this.y / size)
+        let wallBottom = this.y / size
 
         let inputs=[
             (nearestFood?.x-this.x||0)/size,
@@ -91,11 +111,17 @@ class Creature{
 
         let output=this.brain.think(inputs)
 
-        // ✅ PHYSIQUE REALISTE
+        /* ================= PHYSIQUE ================= */
+
         let speed=0.2
 
+        // mouvement normal
         this.vx += output[0]*speed
         this.vy += output[1]*speed
+
+        // ajout de la peur (fuite)
+        this.vx += fearX * 0.3
+        this.vy += fearY * 0.3
 
         // friction
         this.vx *= 0.92
@@ -111,20 +137,28 @@ class Creature{
 
         eatFood(this)
 
-        // ✅ REPRODUCTION PROXIMITE
+        /* ================= REPRODUCTION ================= */
+
+        let alreadyReproduced=false
+
         creatures.forEach(other=>{
 
-            if(other!==this && distance(this,other)<1.5){
+            if(other!==this && !alreadyReproduced){
 
-                if(this.energy>130 && other.energy>130){
+                if(distance(this,other)<1.5){
 
-                    let childBrain=this.brain.clone()
-                    childBrain.mutate()
+                    if(this.energy>130 && other.energy>130){
 
-                    creatures.push(new Creature(childBrain))
+                        let childBrain=this.brain.clone()
+                        childBrain.mutate()
 
-                    this.energy-=60
-                    other.energy-=60
+                        creatures.push(new Creature(childBrain))
+
+                        this.energy-=60
+                        other.energy-=60
+
+                        alreadyReproduced=true
+                    }
                 }
             }
         })
@@ -151,8 +185,12 @@ class Creature{
 class Predator{
 
     constructor(){
+
         this.x=Math.random()*size
         this.y=Math.random()*size
+
+        this.vx=0
+        this.vy=0
     }
 
     update(){
@@ -164,9 +202,15 @@ class Predator{
             let dx=target.x-this.x
             let dy=target.y-this.y
 
-            this.x+=Math.sign(dx)*0.4
-            this.y+=Math.sign(dy)*0.4
+            this.vx += Math.sign(dx)*0.05
+            this.vy += Math.sign(dy)*0.05
         }
+
+        this.vx *= 0.9
+        this.vy *= 0.9
+
+        this.x += this.vx
+        this.y += this.vy
 
         this.x=clamp(this.x)
         this.y=clamp(this.y)
@@ -209,10 +253,12 @@ function eatFood(creature){
     })
 }
 
+/* ================= INIT ================= */
+
 creatures=Array.from({length:15},()=>new Creature())
 predators=Array.from({length:3},()=>new Predator())
 
-/* ================= LOOP AVEC RALENTI ================= */
+/* ================= LOOP ================= */
 
 function loop(timestamp){
 
@@ -225,11 +271,9 @@ function loop(timestamp){
 
     spawnFood()
 
-    // fond
     ctx.fillStyle="#0b1425"
     ctx.fillRect(0,0,canvas.width,canvas.height)
 
-    // nourriture
     food.forEach(f=>{
         ctx.fillStyle="lime"
         ctx.fillRect(f.x*cell,f.y*cell,cell,cell)
