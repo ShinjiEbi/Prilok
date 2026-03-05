@@ -1,6 +1,5 @@
 const size = 60
 const cell = 8
-
 const canvas = document.getElementById("world")
 const ctx = canvas.getContext("2d")
 
@@ -10,149 +9,118 @@ canvas.height = size*cell
 let creatures = []
 let food = []
 
-function rand(n){
-    return Math.floor(Math.random()*n)
-}
+class Creature{
 
-function createCreature(){
-    return {
-        x: rand(size),
-        y: rand(size),
-        energy: 50,
-        speed: Math.random()*1.5 + 0.2,
-        vision: rand(6)+2
+    constructor(brain=null){
+
+        this.x = Math.random()*size|0
+        this.y = Math.random()*size|0
+
+        this.energy = 50
+        this.brain = brain || new Brain()
     }
-}
 
-for(let i=0;i<25;i++){
-    creatures.push(createCreature())
-}
+    update(){
 
-function spawnFood(){
-    for(let i=0;i<30;i++){
-        food.push({
-            x: rand(size),
-            y: rand(size)
-        })
-    }
-}
+        // --- perception ---
+        let nearestFood = food[0]
 
-function distance(a,b){
-    return Math.hypot(a.x-b.x,a.y-b.y)
-}
+        let dx = nearestFood ? nearestFood.x - this.x : 0
+        let dy = nearestFood ? nearestFood.y - this.y : 0
 
-function step(){
+        let inputs = [
+            dx/size,
+            dy/size,
+            this.energy/100,
+            Math.random(),
+            this.x/size,
+            this.y/size
+        ]
 
-    spawnFood()
+        let decision = this.brain.think(inputs)
 
-    creatures.forEach(c=>{
+        // --- action ---
+        this.x += decision > 0.2 ? 1 : -1
+        this.y += decision > 0.5 ? 1 : -1
 
-        let target=null
-        let best=999
+        this.x = Math.max(0,Math.min(size-1,this.x))
+        this.y = Math.max(0,Math.min(size-1,this.y))
 
-        food.forEach(f=>{
-            let d=distance(c,f)
-            if(d<c.vision && d<best){
-                best=d
-                target=f
-            }
-        })
+        this.energy -= 0.5
 
-        if(target){
-
-            if(target.x>c.x)c.x++
-            if(target.x<c.x)c.x--
-            if(target.y>c.y)c.y++
-            if(target.y<c.y)c.y--
-
-        }else{
-
-            if(Math.random()<c.speed){
-                c.x+=rand(3)-1
-                c.y+=rand(3)-1
-            }
-
-        }
-
-        c.x=Math.max(0,Math.min(size-1,c.x))
-        c.y=Math.max(0,Math.min(size-1,c.y))
-
-        c.energy -= 1 + c.speed*0.2
-
+        // manger
         food = food.filter(f=>{
+            if(f.x===this.x && f.y===this.y){
+                this.energy += 20
 
-            if(f.x==c.x && f.y==c.y){
-                c.energy+=20
+                // apprentissage immédiat
+                this.brain.learn(1,inputs)
+
                 return false
             }
-
             return true
         })
 
-        if(c.energy>90){
+        // reproduction
+        if(this.energy > 90){
 
-            let child = {...c}
+            let childBrain = this.brain.clone()
+            childBrain.mutate()
 
-            child.speed += (Math.random()-0.5)*0.2
-            child.vision += rand(3)-1
+            creatures.push(
+                new Creature(childBrain)
+            )
 
-            child.energy=40
-            c.energy-=40
-
-            creatures.push(child)
-
+            this.energy -= 40
         }
 
-    })
+    }
 
-    creatures = creatures.filter(c=>c.energy>0)
+    draw(){
+        ctx.fillStyle="cyan"
+        ctx.fillRect(
+            this.x*cell,
+            this.y*cell,
+            cell,
+            cell
+        )
+    }
 }
 
-function draw(){
+function spawnFood(){
+    for(let i=0;i<20;i++){
+        food.push({
+            x: Math.random()*size|0,
+            y: Math.random()*size|0
+        })
+    }
+}
 
-    ctx.fillStyle="#081018"
+creatures = Array.from(
+    {length:15},
+    ()=> new Creature()
+)
+
+function loop(){
+
+    spawnFood()
+
+    ctx.fillStyle="#000"
     ctx.fillRect(0,0,canvas.width,canvas.height)
 
-    ctx.fillStyle="#2ecc71"
+    creatures.forEach(c=>{
+        c.update()
+        c.draw()
+    })
 
+    ctx.fillStyle="green"
     food.forEach(f=>{
         ctx.fillRect(f.x*cell,f.y*cell,cell,cell)
     })
 
-    creatures.forEach(c=>{
+    creatures = creatures.filter(c=>c.energy>0)
 
-        ctx.fillStyle=`hsl(${c.speed*200},80%,60%)`
-
-        ctx.fillRect(
-            c.x*cell,
-            c.y*cell,
-            cell,
-            cell
-        )
-    })
-
+    requestAnimationFrame(loop)
 }
 
-function stats(){
-
-    if(creatures.length==0)return
-
-    let avgSpeed = creatures.reduce((a,b)=>a+b.speed,0)/creatures.length
-    let avgVision = creatures.reduce((a,b)=>a+b.vision,0)/creatures.length
-
-    document.getElementById("stats").innerText =
-        "Population: "+creatures.length+
-        " | Vitesse moy: "+avgSpeed.toFixed(2)+
-        " | Vision moy: "+avgVision.toFixed(2)
-
-}
-
-function loop(){
-
-    step()
-    draw()
-    stats()
-
-}
-
-setInterval(loop,100)
+loop()
