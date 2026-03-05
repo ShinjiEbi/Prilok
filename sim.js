@@ -142,3 +142,41 @@ setInterval(() => {
     creatures = creatures.filter(c => c.energy > 0)
 
 }, 200) // ⬅️ PLUS LENT (200ms = visibilité claire)
+
+function spawnFood(){
+    for(let i=0;i<20;i++){
+        food.push({
+            x: Math.random()*size|0,
+            y: Math.random()*size|0
+        })
+    }
+}
+
+creatures = Array.from(
+    {length:15},
+    ()=> new Creature()
+)
+
+function loop(){
+
+    spawnFood()
+
+    ctx.fillStyle="#000"
+    ctx.fillRect(0,0,canvas.width,canvas.height)
+
+    creatures.forEach(c=>{
+        c.update()
+        c.draw()
+    })
+
+    ctx.fillStyle="green"
+    food.forEach(f=>{
+        ctx.fillRect(f.x*cell,f.y*cell,cell,cell)
+    })
+
+    creatures = creatures.filter(c=>c.energy>0)
+
+    requestAnimationFrame(loop)
+}
+
+loop()
