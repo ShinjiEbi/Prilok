@@ -59,7 +59,6 @@ class Creature{
         this.vy=0
 
         this.energy=100
-
         this.brain=brain||new Brain()
     }
 
@@ -68,31 +67,33 @@ class Creature{
         let nearestFood=getNearest(food,this.x,this.y)
         let nearestPred=getNearest(predators,this.x,this.y)
 
-        /* ================= PEUR DES PREDATEURS ================= */
+        /* ================= PEUR ================= */
 
-        let fearX = 0
-        let fearY = 0
+        let fearX=0
+        let fearY=0
 
         if(nearestPred){
 
-            let d = distance(this,nearestPred)
+            let d=distance(this,nearestPred)
 
-            if(d < 8){ // distance de peur
+            if(d<10 && d>0){
 
-                let dx = this.x - nearestPred.x
-                let dy = this.y - nearestPred.y
+                let dx=this.x-nearestPred.x
+                let dy=this.y-nearestPred.y
 
-                fearX = (dx / d) * (1 - d/8)
-                fearY = (dy / d) * (1 - d/8)
+                fearX=(dx/d)*(1-d/10)
+                fearY=(dy/d)*(1-d/10)
             }
         }
 
-        /* ================= VISION ================= */
+        /* ================= MURS (PRESSION PLUS FORTE) ================= */
 
-        let wallLeft = 1 - (this.x / size)
-        let wallRight = this.x / size
-        let wallTop = 1 - (this.y / size)
-        let wallBottom = this.y / size
+        let wallLeft = 1 - (this.x/size)
+        let wallRight = this.x/size
+        let wallTop = 1 - (this.y/size)
+        let wallBottom = this.y/size
+
+        /* ================= INPUT NEURAL ================= */
 
         let inputs=[
             (nearestFood?.x-this.x||0)/size,
@@ -113,52 +114,58 @@ class Creature{
 
         /* ================= PHYSIQUE ================= */
 
-        let speed=0.2
+        let speed=0.25
 
-        // mouvement normal
         this.vx += output[0]*speed
         this.vy += output[1]*speed
 
-        // ajout de la peur (fuite)
-        this.vx += fearX * 0.3
-        this.vy += fearY * 0.3
+        // 🔥 fuite naturelle
+        this.vx += fearX*0.4
+        this.vy += fearY*0.4
 
         // friction
-        this.vx *= 0.92
-        this.vy *= 0.92
+        this.vx*=0.9
+        this.vy*=0.9
 
-        this.x += this.vx
-        this.y += this.vy
+        this.x+=this.vx
+        this.y+=this.vy
+
+        /* ================= BORDS – REBOND AU LIEU DE BLOQUAGE ================= */
+
+        if(this.x<=0 || this.x>=size-1){
+            this.vx*=-0.8
+        }
+
+        if(this.y<=0 || this.y>=size-1){
+            this.vy*=-0.8
+        }
 
         this.x=clamp(this.x)
         this.y=clamp(this.y)
 
-        this.energy -= 0.3
+        this.energy-=0.3
 
         eatFood(this)
 
-        /* ================= REPRODUCTION ================= */
-
-        let alreadyReproduced=false
+        /* ================= REPRODUCTION FIABLE ================= */
 
         creatures.forEach(other=>{
 
-            if(other!==this && !alreadyReproduced){
+            if(other!==this){
 
-                if(distance(this,other)<1.5){
+                let d=distance(this,other)
 
-                    if(this.energy>130 && other.energy>130){
+                if(d<1.8 &&
+                   this.energy>140 &&
+                   other.energy>140){
 
-                        let childBrain=this.brain.clone()
-                        childBrain.mutate()
+                    let childBrain=this.brain.clone()
+                    childBrain.mutate()
 
-                        creatures.push(new Creature(childBrain))
+                    creatures.push(new Creature(childBrain))
 
-                        this.energy-=60
-                        other.energy-=60
-
-                        alreadyReproduced=true
-                    }
+                    this.energy-=60
+                    other.energy-=60
                 }
             }
         })
