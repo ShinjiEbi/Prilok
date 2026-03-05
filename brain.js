@@ -1,18 +1,18 @@
 class Brain {
 
-    constructor(weights = null) {
+    constructor(weights=null){
 
-        this.inputSize = 9
-        this.hiddenSize = 12
+        this.inputSize = 12
+        this.hiddenSize = 16
         this.outputSize = 4
 
-        this.w1 = weights?.w1 || this.randomMatrix(this.hiddenSize, this.inputSize)
-        this.w2 = weights?.w2 || this.randomMatrix(this.outputSize, this.hiddenSize)
+        this.w1 = weights?.w1 || this.randomMatrix(this.hiddenSize,this.inputSize)
+        this.w2 = weights?.w2 || this.randomMatrix(this.outputSize,this.hiddenSize)
 
         this.memory = Math.random()
     }
 
-    randomMatrix(rows, cols){
+    randomMatrix(rows,cols){
         return Array.from({length:rows},()=> 
             Array.from({length:cols},()=>Math.random()*2-1)
         )
@@ -43,7 +43,7 @@ class Brain {
 
         function mutateMatrix(m){
             return m.map(row =>
-                row.map(v=> v + (Math.random()-0.5)*0.4)
+                row.map(v=> v + (Math.random()-0.5)*0.3)
             )
         }
 
