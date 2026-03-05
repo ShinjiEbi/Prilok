@@ -11,7 +11,9 @@ let predators = []
 let food = []
 
 let lastUpdate = 0
-const updateDelay = 150
+const updateDelay = 120
+
+/* ================= UTILS ================= */
 
 function clamp(v){
     return Math.max(0,Math.min(size-1,v))
@@ -38,12 +40,27 @@ function getNearest(list,x,y){
 }
 
 function spawnFood(){
-    if(Math.random()<0.4){
+    if(Math.random()<0.5){
         food.push({
             x:Math.random()*size|0,
             y:Math.random()*size|0
         })
     }
+}
+
+function eatFood(creature){
+
+    food = food.filter(f=>{
+
+        if(Math.floor(f.x)===Math.floor(creature.x) &&
+           Math.floor(f.y)===Math.floor(creature.y)){
+
+            creature.energy += 50
+            return false
+        }
+
+        return true
+    })
 }
 
 /* ================= CREATURE ================= */
@@ -58,7 +75,8 @@ class Creature{
         this.vx=0
         this.vy=0
 
-        this.energy=100
+        this.energy=120
+
         this.brain=brain||new Brain()
     }
 
@@ -66,8 +84,9 @@ class Creature{
 
         let nearestFood=getNearest(food,this.x,this.y)
         let nearestPred=getNearest(predators,this.x,this.y)
+        let nearestAlly=getNearest(creatures.filter(c=>c!==this),this.x,this.y)
 
-        /* ================= PEUR ================= */
+        /* ===== INSTINCT SURVIE ===== */
 
         let fearX=0
         let fearY=0
@@ -76,96 +95,99 @@ class Creature{
 
             let d=distance(this,nearestPred)
 
-            if(d<10 && d>0){
+            if(d<12 && d>0){
 
                 let dx=this.x-nearestPred.x
                 let dy=this.y-nearestPred.y
 
-                fearX=(dx/d)*(1-d/10)
-                fearY=(dy/d)*(1-d/10)
+                fearX=(dx/d)*(1-d/12)
+                fearY=(dy/d)*(1-d/12)
             }
         }
 
-        /* ================= MURS (PRESSION PLUS FORTE) ================= */
+        /* ===== ENTRAIDE ===== */
 
-        let wallLeft = 1 - (this.x/size)
-        let wallRight = this.x/size
-        let wallTop = 1 - (this.y/size)
-        let wallBottom = this.y/size
+        let helpX=0
+        let helpY=0
 
-        /* ================= INPUT NEURAL ================= */
+        if(nearestAlly){
+
+            let d=distance(this,nearestAlly)
+
+            if(d<6 && d>0){
+
+                let dx=nearestAlly.x-this.x
+                let dy=nearestAlly.y-this.y
+
+                helpX=(dx/d)*0.1
+                helpY=(dy/d)*0.1
+            }
+        }
+
+        /* ===== INPUT NEURONE ===== */
 
         let inputs=[
             (nearestFood?.x-this.x||0)/size,
             (nearestFood?.y-this.y||0)/size,
             (nearestPred?.x-this.x||0)/size,
             (nearestPred?.y-this.y||0)/size,
-            wallLeft,
-            wallRight,
-            wallTop,
-            wallBottom,
-            this.energy/100,
-            this.vx,
-            this.vy,
-            food.length/100
+            this.energy/150,
+            food.length/100,
+            predators.length/10
         ]
 
         let output=this.brain.think(inputs)
 
-        /* ================= PHYSIQUE ================= */
+        /* ===== PHYSIQUE ===== */
 
-        let speed=0.25
+        let speed=0.3
 
         this.vx += output[0]*speed
         this.vy += output[1]*speed
 
-        // 🔥 fuite naturelle
-        this.vx += fearX*0.4
-        this.vy += fearY*0.4
+        // instincts automatiques
+        this.vx += fearX*0.6
+        this.vy += fearY*0.6
+
+        // entraide
+        this.vx += helpX
+        this.vy += helpY
 
         // friction
-        this.vx*=0.9
-        this.vy*=0.9
+        this.vx*=0.88
+        this.vy*=0.88
 
         this.x+=this.vx
         this.y+=this.vy
 
-        /* ================= BORDS – REBOND AU LIEU DE BLOQUAGE ================= */
-
-        if(this.x<=0 || this.x>=size-1){
-            this.vx*=-0.8
-        }
-
-        if(this.y<=0 || this.y>=size-1){
-            this.vy*=-0.8
-        }
+        // rebond murs
+        if(this.x<=0 || this.x>=size-1) this.vx*=-0.7
+        if(this.y<=0 || this.y>=size-1) this.vy*=-0.7
 
         this.x=clamp(this.x)
         this.y=clamp(this.y)
 
-        this.energy-=0.3
+        this.energy-=0.4
 
         eatFood(this)
 
-        /* ================= REPRODUCTION FIABLE ================= */
+        /* ===== REPRODUCTION FACILE ===== */
 
         creatures.forEach(other=>{
 
             if(other!==this){
 
-                let d=distance(this,other)
-
-                if(d<1.8 &&
-                   this.energy>140 &&
-                   other.energy>140){
+                if(distance(this,other)<2.2 &&
+                   this.energy>110 &&
+                   other.energy>110){
 
                     let childBrain=this.brain.clone()
                     childBrain.mutate()
 
                     creatures.push(new Creature(childBrain))
 
-                    this.energy-=60
-                    other.energy-=60
+                    this.energy-=40
+                    other.energy-=40
                 }
             }
         })
@@ -176,13 +198,7 @@ class Creature{
         ctx.fillStyle="cyan"
 
         ctx.beginPath()
-        ctx.arc(
-            this.x*cell,
-            this.y*cell,
-            cell/3,
-            0,
-            Math.PI*2
-        )
+        ctx.arc(this.x*cell,this.y*cell,cell/3,0,Math.PI*2)
         ctx.fill()
     }
 }
@@ -209,15 +225,15 @@ class Predator{
             let dx=target.x-this.x
             let dy=target.y-this.y
 
-            this.vx += Math.sign(dx)*0.05
-            this.vy += Math.sign(dy)*0.05
+            this.vx += Math.sign(dx)*0.08
+            this.vy += Math.sign(dy)*0.08
         }
 
-        this.vx *= 0.9
-        this.vy *= 0.9
+        this.vx*=0.9
+        this.vy*=0.9
 
-        this.x += this.vx
-        this.y += this.vy
+        this.x+=this.vx
+        this.y+=this.vy
 
         this.x=clamp(this.x)
         this.y=clamp(this.y)
@@ -237,33 +253,15 @@ class Predator{
         ctx.fillStyle="red"
 
         ctx.beginPath()
-        ctx.moveTo(this.x*cell,this.y*cell-cell/2)
-        ctx.lineTo(this.x*cell-cell/2,this.y*cell+cell/2)
-        ctx.lineTo(this.x*cell+cell/2,this.y*cell+cell/2)
-        ctx.closePath()
+        ctx.arc(this.x*cell,this.y*cell,cell/2,0,Math.PI*2)
         ctx.fill()
     }
-}
-
-function eatFood(creature){
-
-    food=food.filter(f=>{
-
-        if(Math.floor(f.x)===Math.floor(creature.x) &&
-           Math.floor(f.y)===Math.floor(creature.y)){
-
-            creature.energy+=40
-            return false
-        }
-
-        return true
-    })
 }
 
 /* ================= INIT ================= */
 
 creatures=Array.from({length:15},()=>new Creature())
-predators=Array.from({length:1},()=>new Predator())
+predators=Array.from({length:2},()=>new Predator())
 
 /* ================= LOOP ================= */
 
