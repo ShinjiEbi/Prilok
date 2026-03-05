@@ -2,34 +2,34 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ecosystem Balanced</title>
+<title>Evolution Sim</title>
 
 <style>
-body{
+
+html,body{
     margin:0;
-    background:#050510;
-    color:white;
-    font-family:sans-serif;
-    text-align:center;
+    padding:0;
+    background:#000;
+    overflow:hidden;
 }
 
+/* 🔥 Canvas prend tout l’écran */
 canvas{
     display:block;
-    margin:auto;
-    background:#0f1a2e;
+    width:100vw;
+    height:100vh;
+    image-rendering: pixelated;
 }
+
 </style>
 
 </head>
 <body>
 
-<h2>Ecosystème – Version Lente + Equilibrée</h2>
-
 <canvas id="world"></canvas>
 
 <script src="brain.js"></script>
-<script src="sim.js"></script>
+<script src="main.js"></script>
 
 </body>
 </html>
