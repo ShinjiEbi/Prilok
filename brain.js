@@ -1,43 +1,60 @@
 class Brain {
 
-    constructor(weights=null){
+    constructor(weights = null) {
 
-        if(weights){
-            this.w = weights
-        }else{
-            // 6 entrées → 1 sortie
-            this.w = Array.from({length:6},
-                ()=>Math.random()*2-1)
-        }
+        this.inputSize = 9
+        this.hiddenSize = 12
+        this.outputSize = 4
 
-        this.learningRate = 0.05
+        this.w1 = weights?.w1 || this.randomMatrix(this.hiddenSize, this.inputSize)
+        this.w2 = weights?.w2 || this.randomMatrix(this.outputSize, this.hiddenSize)
+
+        this.memory = Math.random()
+    }
+
+    randomMatrix(rows, cols){
+        return Array.from({length:rows},()=> 
+            Array.from({length:cols},()=>Math.random()*2-1)
+        )
+    }
+
+    activate(x){
+        return Math.tanh(x)
     }
 
     think(inputs){
 
-        let sum = 0
-        for(let i=0;i<this.w.length;i++){
-            sum += inputs[i]*this.w[i]
-        }
+        inputs.push(this.memory)
 
-        return Math.tanh(sum)
-    }
+        let hidden = this.w1.map(row =>
+            this.activate(row.reduce((s,w,i)=>s+w*inputs[i],0))
+        )
 
-    learn(error, inputs){
+        let output = this.w2.map(row =>
+            this.activate(row.reduce((s,w,i)=>s+w*hidden[i],0))
+        )
 
-        // apprentissage pendant la vie
-        for(let i=0;i<this.w.length;i++){
-            this.w[i] += this.learningRate * error * inputs[i]
-        }
+        this.memory = output[0]
+
+        return output
     }
 
     mutate(){
-        this.w = this.w.map(v =>
-            v + (Math.random()-0.5)*0.3
-        )
+
+        function mutateMatrix(m){
+            return m.map(row =>
+                row.map(v=> v + (Math.random()-0.5)*0.4)
+            )
+        }
+
+        this.w1 = mutateMatrix(this.w1)
+        this.w2 = mutateMatrix(this.w2)
     }
 
     clone(){
-        return new Brain([...this.w])
+        return new Brain({
+            w1: JSON.parse(JSON.stringify(this.w1)),
+            w2: JSON.parse(JSON.stringify(this.w2))
+        })
     }
 }
