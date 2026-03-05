@@ -43,7 +43,7 @@ class Brain {
 
         function mutateMatrix(m){
             return m.map(row =>
-                row.map(v=> v + (Math.random()-0.5)*0.3)
+                row.map(v=> v + (Math.random()-0.5)*0.2)
             )
         }
 
