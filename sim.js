@@ -8,6 +8,12 @@ canvas.height = size * cell
 
 let creatures = []
 let food = []
+let lastUpdate = 0
+const updateDelay = 200 // 🔥 ralentissement
+
+// ==========================
+// 🧠 CREATURE
+// ==========================
 
 class Creature {
 
@@ -36,25 +42,27 @@ class Creature {
 
         let decision = this.brain.think(inputs)
 
-        // Mouvement plus lent
-        if (Math.abs(decision) > 0.3) {
+        // Mouvement lent
+        if (Math.abs(decision) > 0.4) {
             this.x += decision > 0 ? 1 : -1
         }
 
-        if (Math.abs(decision) > 0.6) {
+        if (Math.abs(decision) > 0.7) {
             this.y += decision > 0 ? 1 : -1
         }
 
         this.x = Math.max(0, Math.min(size - 1, this.x))
         this.y = Math.max(0, Math.min(size - 1, this.y))
 
-        this.energy -= 0.2
+        this.energy -= 0.3
 
         // Manger
         food = food.filter(f => {
             if (f.x === this.x && f.y === this.y) {
+
                 this.energy += 25
                 this.brain.learn(1, inputs)
+
                 return false
             }
             return true
@@ -73,9 +81,9 @@ class Creature {
 
     draw() {
 
-        // Couleur dynamique selon énergie
         let green = Math.min(255, this.energy * 3)
-        ctx.fillStyle = `rgb(0, ${green}, 255)`
+
+        ctx.fillStyle = `rgb(0,${green},255)`
 
         ctx.beginPath()
         ctx.arc(
@@ -89,9 +97,13 @@ class Creature {
     }
 }
 
+// ==========================
+// 🌱 SPAWN FOOD
+// ==========================
+
 function spawnFood() {
 
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 15; i++) {
 
         food.push({
             x: Math.random() * size | 0,
@@ -100,23 +112,43 @@ function spawnFood() {
     }
 }
 
-creatures = Array.from({ length: 15 }, () => new Creature())
+// ==========================
+// 🎮 INITIALISATION
+// ==========================
 
-// 🔥 RALENTIR ICI
-setInterval(() => {
+creatures = Array.from(
+    { length: 15 },
+    () => new Creature()
+)
+
+// ==========================
+// 🔄 UNE SEULE BOUCLE
+// ==========================
+
+function loop(timestamp) {
+
+    if (timestamp - lastUpdate < updateDelay) {
+        requestAnimationFrame(loop)
+        return
+    }
+
+    lastUpdate = timestamp
 
     spawnFood()
 
-    // Fond dégradé
+    // Fond
     let gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height)
     gradient.addColorStop(0, "#050510")
     gradient.addColorStop(1, "#0f1f3d")
+
     ctx.fillStyle = gradient
     ctx.fillRect(0, 0, canvas.width, canvas.height)
 
     // Grille
     ctx.strokeStyle = "rgba(255,255,255,0.05)"
+
     for (let i = 0; i < size; i++) {
+
         ctx.beginPath()
         ctx.moveTo(i * cell, 0)
         ctx.lineTo(i * cell, canvas.height)
@@ -128,53 +160,20 @@ setInterval(() => {
         ctx.stroke()
     }
 
-    // Dessin nourriture
+    // Nourriture
     ctx.fillStyle = "lime"
+
     food.forEach(f => {
         ctx.fillRect(f.x * cell, f.y * cell, cell, cell)
     })
 
+    // Créatures
     creatures.forEach(c => {
         c.update()
         c.draw()
     })
 
     creatures = creatures.filter(c => c.energy > 0)
-
-}, 200) // ⬅️ PLUS LENT (200ms = visibilité claire)
-
-function spawnFood(){
-    for(let i=0;i<20;i++){
-        food.push({
-            x: Math.random()*size|0,
-            y: Math.random()*size|0
-        })
-    }
-}
-
-creatures = Array.from(
-    {length:15},
-    ()=> new Creature()
-)
-
-function loop(){
-
-    spawnFood()
-
-    ctx.fillStyle="#000"
-    ctx.fillRect(0,0,canvas.width,canvas.height)
-
-    creatures.forEach(c=>{
-        c.update()
-        c.draw()
-    })
-
-    ctx.fillStyle="green"
-    food.forEach(f=>{
-        ctx.fillRect(f.x*cell,f.y*cell,cell,cell)
-    })
-
-    creatures = creatures.filter(c=>c.energy>0)
 
     requestAnimationFrame(loop)
 }
