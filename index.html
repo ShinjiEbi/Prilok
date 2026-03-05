@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Eco Simulation</title>
+<style>
+body{
+margin:0;
+background:black;
+}
+canvas{
+display:block;
+}
+</style>
+</head>
+<body>
+
+<canvas id="world"></canvas>
+
+<script>
+
+/* ================= BRAIN ================= */
+
+class Brain{
+
+constructor(){
+
+this.weights=[]
+for(let i=0;i<10;i++){
+this.weights[i]=Math.random()*2-1
+}
+
+this.bias=Math.random()*2-1
+}
+
+think(inputs){
+
+let sum=0
+
+for(let i=0;i<this.weights.length;i++){
+sum += (inputs[i]||0)*this.weights[i]
+}
+
+sum += this.bias
+
+let activated=Math.tanh(sum)
+
+return [activated,activated]
+}
+
+clone(){
+let b=new Brain()
+b.weights=[...this.weights]
+b.bias=this.bias
+return b
+}
+
+mutate(){
+
+for(let i=0;i<this.weights.length;i++){
+if(Math.random()<0.1){
+this.weights[i]+= (Math.random()*2-1)*0.3
+}
+}
+
+if(Math.random()<0.1){
+this.bias+= (Math.random()*2-1)*0.5
+}
+}
+
+}
+
+/* ================= SIMULATION ================= */
+
+const size=50
+const cell=12
+const canvas=document.getElementById("world")
+const ctx=canvas.getContext("2d")
+
+canvas.width=size*cell
+canvas.height=size*cell
+
+let creatures=[]
+let predators=[]
+let food=[]
+let lastUpdate=0
+const delay=120
+
+function clamp(v){
+return Math.max(0,Math.min(size-1,v))
+}
+
+function distance(a,b){
+return Math.hypot(a.x-b.x,a.y-b.y)
+}
+
+function spawnFood(){
+if(Math.random()<0.3){
+food.push({
+x:Math.random()*size|0,
+y:Math.random()*size|0
+})
+}
+}
+
+function eatFood(c){
+
+food=food.filter(f=>{
+
+if(Math.floor(f.x)==Math.floor(c.x) &&
+Math.floor(f.y)==Math.floor(c.y)){
+
+c.energy+=40
+return false
+}
+
+return true
+})
+}
+
+/* ================= CREATURE ================= */
+
+class Creature{
+
+constructor(brain=null){
+
+this.x=Math.random()*size
+this.y=Math.random()*size
+this.vx=0
+this.vy=0
+this.energy=100
+this.brain=brain||new Brain()
+}
+
+update(){
+
+let nearest=null
+let min=9999
+
+food.forEach(f=>{
+let d=distance(this,f)
+if(d<min){
+min=d
+nearest=f
+}
+})
+
+let inputs=[
+(nearest?.x-this.x||0)/size,
+(nearest?.y-this.y||0)/size,
+this.energy/100
+]
+
+let out=this.brain.think(inputs)
+
+this.vx+=out[0]*0.2
+this.vy+=out[1]*0.2
+
+this.vx*=0.9
+this.vy*=0.9
+
+this.x+=this.vx
+this.y+=this.vy
+
+this.x=clamp(this.x)
+this.y=clamp(this.y)
+
+this.energy-=0.2
+
+eatFood(this)
+
+if(this.energy>150){
+
+let childBrain=this.brain.clone()
+childBrain.mutate()
+
+creatures.push(new Creature(childBrain))
+
+this.energy-=70
+}
+}
+
+draw(){
+
+ctx.fillStyle="cyan"
+ctx.beginPath()
+ctx.arc(this.x*cell,this.y*cell,cell/3,0,Math.PI*2)
+ctx.fill()
+}
+
+}
+
+/* ================= INIT ================= */
+
+creatures=Array.from({length:15},()=>new Creature())
+predators=[]
+
+/* ================= LOOP ================= */
+
+function loop(t){
+
+if(t-lastUpdate<delay){
+requestAnimationFrame(loop)
+return
+}
+
+lastUpdate=t
+
+spawnFood()
+
+ctx.fillStyle="black"
+ctx.fillRect(0,0,canvas.width,canvas.height)
+
+food.forEach(f=>{
+ctx.fillStyle="lime"
+ctx.fillRect(f.x*cell,f.y*cell,cell,cell)
+})
+
+creatures.forEach(c=>{
+c.update()
+c.draw()
+})
+
+creatures=creatures.filter(c=>c.energy>0)
+
+requestAnimationFrame(loop)
+}
+
+loop()
+
+</script>
+</body>
+</html>
