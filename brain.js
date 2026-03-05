@@ -1,132 +1,62 @@
 class Brain{
 
-    constructor(weights=null){
+    constructor(){
 
-        this.inputSize = 4
-        this.hiddenSize = 8
-        this.outputSize = 2
+        // petit réseau simple
+        this.weights=[]
 
-        this.weights = weights || this.randomWeights()
-    }
-
-    /* ================= INIT RANDOM ================= */
-
-    randomWeights(){
-
-        let weights=[]
-
-        for(let i=0;i<this.inputSize;i++){
-            weights[i]=[]
-            for(let h=0;h<this.hiddenSize;h++){
-                weights[i][h]=Math.random()*2-1
-            }
+        for(let i=0;i<12;i++){
+            this.weights[i]=Math.random()*2-1
         }
 
-        this.hiddenBias = Array.from({length:this.hiddenSize},
-            ()=>Math.random()*2-1)
-
-        this.outputWeights=[]
-        for(let h=0;h<this.hiddenSize;h++){
-            this.outputWeights[h]=[]
-            for(let o=0;o<this.outputSize;o++){
-                this.outputWeights[h][o]=Math.random()*2-1
-            }
-        }
-
-        this.outputBias = Array.from({length:this.outputSize},
-            ()=>Math.random()*2-1)
-
-        return {
-            input:this.weights,
-            hiddenBias:this.hiddenBias,
-            output:this.outputWeights,
-            outputBias:this.outputBias
-        }
+        this.bias=Math.random()*2-1
     }
-
-    /* ================= ACTIVATION ================= */
-
-    sigmoid(x){
-        return 1/(1+Math.exp(-x))
-    }
-
-    /* ================= THINK ================= */
 
     think(inputs){
 
-        let hidden=[]
+        let outputs=[0,0]
 
-        for(let h=0;h<this.hiddenSize;h++){
+        // sécurité si mauvais input
+        if(!inputs) return outputs
 
-            let sum=this.weights.input.reduce((acc,inputRow,i)=>{
-                return acc + inputs[i]*inputRow[h]
-            },0)
+        let sum=0
 
-            sum += this.weights.hiddenBias[h]
-
-            hidden[h]=this.sigmoid(sum)
+        for(let i=0;i<this.weights.length;i++){
+            sum += (inputs[i]||0) * this.weights[i]
         }
 
-        let output=[]
+        sum += this.bias
 
-        for(let o=0;o<this.outputSize;o++){
+        // activation tanh
+        let activated=Math.tanh(sum)
 
-            let sum=0
+        outputs[0]=activated
+        outputs[1]=Math.tanh(sum*0.5)
 
-            for(let h=0;h<this.hiddenSize;h++){
-                sum += hidden[h]*this.weights.output[h][o]
-            }
-
-            sum += this.weights.outputBias[o]
-
-            output[o]=Math.tanh(sum)
-        }
-
-        return output
+        return outputs
     }
-
-    /* ================= MUTATION ================= */
-
-    mutate(rate=0.1){
-
-        function mutateValue(v){
-            if(Math.random()<rate){
-                return v + (Math.random()*2-1)*0.5
-            }
-            return v
-        }
-
-        for(let i=0;i<this.inputSize;i++){
-            for(let h=0;h<this.hiddenSize;h++){
-                this.weights.input[i][h] =
-                    mutateValue(this.weights.input[i][h])
-            }
-        }
-
-        for(let h=0;h<this.hiddenSize;h++){
-            this.weights.hiddenBias[h] =
-                mutateValue(this.weights.hiddenBias[h])
-        }
-
-        for(let h=0;h<this.hiddenSize;h++){
-            for(let o=0;o<this.outputSize;o++){
-                this.weights.output[h][o] =
-                    mutateValue(this.weights.output[h][o])
-            }
-        }
-
-        for(let o=0;o<this.outputSize;o++){
-            this.weights.outputBias[o] =
-                mutateValue(this.weights.outputBias[o])
-        }
-    }
-
-    /* ================= CLONE ================= */
 
     clone(){
 
-        let newBrain = new Brain(JSON.parse(JSON.stringify(this.weights)))
+        let b=new Brain()
 
-        return newBrain
+        b.weights=[...this.weights]
+        b.bias=this.bias
+
+        return b
+    }
+
+    mutate(){
+
+        for(let i=0;i<this.weights.length;i++){
+
+            if(Math.random()<0.1){
+                this.weights[i]+= (Math.random()*2-1)*0.3
+            }
+        }
+
+        if(Math.random()<0.1){
+            this.bias += (Math.random()*2-1)*0.5
+        }
     }
 }
