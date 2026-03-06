@@ -65,33 +65,3 @@ mutate(rate=0.1){
 this.mutateMatrix(this.w1,rate)
 this.mutateMatrix(this.w2,rate)
 }
-
-randomMatrix(r,c){
-
-let m=[]
-for(let i=0;i<r;i++){
-m[i]=[]
-for(let j=0;j<c;j++){
-m[i][j]=(Math.random()*2-1)*0.5
-}
-}
-return m
-}
-
-randomArray(size){
-return Array.from({length:size},()=> (Math.random()*2-1)*0.5)
-}
-
-mutateMatrix(matrix,rate){
-
-for(let i=0;i<matrix.length;i++){
-for(let j=0;j<matrix[i].length;j++){
-if(Math.random()<rate){
-matrix[i][j]+=(Math.random()*2-1)*0.3
-}
-}
-}
-
-}
-
-}
