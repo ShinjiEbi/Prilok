@@ -4,7 +4,7 @@
 
 class Brain{
 
-constructor(inputSize=7,hiddenSize=16,outputSize=2){
+constructor(inputSize=9,hiddenSize=24,outputSize=3){
 
 this.inputSize=inputSize
 this.hiddenSize=hiddenSize
@@ -66,17 +66,15 @@ this.mutateMatrix(this.w1,rate)
 this.mutateMatrix(this.w2,rate)
 }
 
-randomMatrix(rows,cols){
+randomMatrix(r,c){
 
 let m=[]
-
-for(let i=0;i<rows;i++){
+for(let i=0;i<r;i++){
 m[i]=[]
-for(let j=0;j<cols;j++){
+for(let j=0;j<c;j++){
 m[i][j]=(Math.random()*2-1)*0.5
 }
 }
-
 return m
 }
 
@@ -88,11 +86,9 @@ mutateMatrix(matrix,rate){
 
 for(let i=0;i<matrix.length;i++){
 for(let j=0;j<matrix[i].length;j++){
-
 if(Math.random()<rate){
 matrix[i][j]+=(Math.random()*2-1)*0.3
 }
-
 }
 }
 
